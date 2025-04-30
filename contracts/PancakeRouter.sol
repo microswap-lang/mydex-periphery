@@ -23,7 +23,16 @@ contract PancakeRouter is IPancakeRouter02 {
     constructor(address _factory, address _WETH) public {
         factory = _factory;
         WETH = _WETH;
+        usdtAddress = _usdt; // Assign USDT address
     }
+
+    function isFeeExempt(uint amountIn, address tokenIn) public view returns (bool) {
+    if (tokenIn == usdtAddress && amountIn < 100 * 1e18) {
+        return true;
+        }
+    return false;
+    }
+
 
     receive() external payable {
         assert(msg.sender == WETH); // only accept ETH via fallback from the WETH contract
