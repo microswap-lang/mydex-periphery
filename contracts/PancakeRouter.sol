@@ -14,25 +14,25 @@ contract PancakeRouter is IPancakeRouter02 {
 
     address public immutable override factory;
     address public immutable override WETH;
+    address public immutable usdtAddress; // Added state variable for USDT
 
     modifier ensure(uint deadline) {
         require(deadline >= block.timestamp, 'PancakeRouter: EXPIRED');
         _;
     }
 
-    constructor(address _factory, address _WETH) public {
+    constructor(address _factory, address _WETH, address _usdt) public {
         factory = _factory;
         WETH = _WETH;
         usdtAddress = _usdt; // Assign USDT address
     }
 
     function isFeeExempt(uint amountIn, address tokenIn) public view returns (bool) {
-    if (tokenIn == usdtAddress && amountIn < 100 * 1e18) {
-        return true;
+        if (tokenIn == usdtAddress && amountIn < 100 * 1e18) {
+            return true;
         }
-    return false;
+        return false;
     }
-
 
     receive() external payable {
         assert(msg.sender == WETH); // only accept ETH via fallback from the WETH contract
@@ -67,6 +67,7 @@ contract PancakeRouter is IPancakeRouter02 {
             }
         }
     }
+
     function addLiquidity(
         address tokenA,
         address tokenB,
@@ -83,6 +84,7 @@ contract PancakeRouter is IPancakeRouter02 {
         TransferHelper.safeTransferFrom(tokenB, msg.sender, pair, amountB);
         liquidity = IPancakePair(pair).mint(to);
     }
+
     function addLiquidityETH(
         address token,
         uint amountTokenDesired,
@@ -126,6 +128,7 @@ contract PancakeRouter is IPancakeRouter02 {
         require(amountA >= amountAMin, 'PancakeRouter: INSUFFICIENT_A_AMOUNT');
         require(amountB >= amountBMin, 'PancakeRouter: INSUFFICIENT_B_AMOUNT');
     }
+
     function removeLiquidityETH(
         address token,
         uint liquidity,
@@ -147,6 +150,7 @@ contract PancakeRouter is IPancakeRouter02 {
         IWETH(WETH).withdraw(amountETH);
         TransferHelper.safeTransferETH(to, amountETH);
     }
+
     function removeLiquidityWithPermit(
         address tokenA,
         address tokenB,
@@ -162,6 +166,7 @@ contract PancakeRouter is IPancakeRouter02 {
         IPancakePair(pair).permit(msg.sender, address(this), value, deadline, v, r, s);
         (amountA, amountB) = removeLiquidity(tokenA, tokenB, liquidity, amountAMin, amountBMin, to, deadline);
     }
+
     function removeLiquidityETHWithPermit(
         address token,
         uint liquidity,
@@ -199,6 +204,7 @@ contract PancakeRouter is IPancakeRouter02 {
         IWETH(WETH).withdraw(amountETH);
         TransferHelper.safeTransferETH(to, amountETH);
     }
+
     function removeLiquidityETHWithPermitSupportingFeeOnTransferTokens(
         address token,
         uint liquidity,
@@ -217,7 +223,6 @@ contract PancakeRouter is IPancakeRouter02 {
     }
 
     // **** SWAP ****
-    // requires the initial amount to have already been sent to the first pair
     function _swap(uint[] memory amounts, address[] memory path, address _to) internal virtual {
         for (uint i; i < path.length - 1; i++) {
             (address input, address output) = (path[i], path[i + 1]);
@@ -230,6 +235,7 @@ contract PancakeRouter is IPancakeRouter02 {
             );
         }
     }
+
     function swapExactTokensForTokens(
         uint amountIn,
         uint amountOutMin,
@@ -244,6 +250,7 @@ contract PancakeRouter is IPancakeRouter02 {
         );
         _swap(amounts, path, to);
     }
+
     function swapTokensForExactTokens(
         uint amountOut,
         uint amountInMax,
@@ -258,6 +265,7 @@ contract PancakeRouter is IPancakeRouter02 {
         );
         _swap(amounts, path, to);
     }
+
     function swapExactETHForTokens(uint amountOutMin, address[] calldata path, address to, uint deadline)
         external
         virtual
@@ -273,6 +281,7 @@ contract PancakeRouter is IPancakeRouter02 {
         assert(IWETH(WETH).transfer(PancakeLibrary.pairFor(factory, path[0], path[1]), amounts[0]));
         _swap(amounts, path, to);
     }
+
     function swapTokensForExactETH(uint amountOut, uint amountInMax, address[] calldata path, address to, uint deadline)
         external
         virtual
@@ -290,6 +299,7 @@ contract PancakeRouter is IPancakeRouter02 {
         IWETH(WETH).withdraw(amounts[amounts.length - 1]);
         TransferHelper.safeTransferETH(to, amounts[amounts.length - 1]);
     }
+
     function swapExactTokensForETH(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline)
         external
         virtual
@@ -307,6 +317,7 @@ contract PancakeRouter is IPancakeRouter02 {
         IWETH(WETH).withdraw(amounts[amounts.length - 1]);
         TransferHelper.safeTransferETH(to, amounts[amounts.length - 1]);
     }
+
     function swapETHForExactTokens(uint amountOut, address[] calldata path, address to, uint deadline)
         external
         virtual
@@ -326,7 +337,6 @@ contract PancakeRouter is IPancakeRouter02 {
     }
 
     // **** SWAP (supporting fee-on-transfer tokens) ****
-    // requires the initial amount to have already been sent to the first pair
     function _swapSupportingFeeOnTransferTokens(address[] memory path, address _to) internal virtual {
         for (uint i; i < path.length - 1; i++) {
             (address input, address output) = (path[i], path[i + 1]);
@@ -345,6 +355,7 @@ contract PancakeRouter is IPancakeRouter02 {
             pair.swap(amount0Out, amount1Out, to, new bytes(0));
         }
     }
+
     function swapExactTokensForTokensSupportingFeeOnTransferTokens(
         uint amountIn,
         uint amountOutMin,
@@ -362,6 +373,7 @@ contract PancakeRouter is IPancakeRouter02 {
             'PancakeRouter: INSUFFICIENT_OUTPUT_AMOUNT'
         );
     }
+
     function swapExactETHForTokensSupportingFeeOnTransferTokens(
         uint amountOutMin,
         address[] calldata path,
@@ -385,6 +397,7 @@ contract PancakeRouter is IPancakeRouter02 {
             'PancakeRouter: INSUFFICIENT_OUTPUT_AMOUNT'
         );
     }
+
     function swapExactTokensForETHSupportingFeeOnTransferTokens(
         uint amountIn,
         uint amountOutMin,
