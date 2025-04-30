@@ -2,25 +2,23 @@
 pragma solidity ^0.8.20;
 
 import "./interfaces/IPancakePair.sol";
-import "./interfaces/IPancakeFactory.sol";
 import "./libraries/SafeMath.sol";
 
 library PancakeLibrary {
     using SafeMath for uint256;
 
-    // PancakeSwap V2 Pair init code hash
-    // https://github.com/pancakeswap/pancake-swap-core/blob/master/contracts/PancakePair.sol
+    // PancakeSwap V2 Pair init code hash (unchanged from PCS v2)
     bytes32 internal constant PAIR_INIT_CODE_HASH = 
         hex"00fb7f630766e6a796048ea87d01acd3068e8ff67e3d7ed8858e9d10f44dcf8f8";
 
-    // Returns sorted token addresses, used to handle return values
+    // Sorts token addresses to ensure deterministic ordering
     function sortTokens(address tokenA, address tokenB) internal pure returns (address token0, address token1) {
         require(tokenA != tokenB, "PancakeLibrary: IDENTICAL_ADDRESSES");
         (token0, token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
         require(token0 != address(0), "PancakeLibrary: ZERO_ADDRESS");
     }
 
-    // Calculates the CREATE2 address for a pair without any external calls
+    // Calculates the pair address using CREATE2 (no external calls)
     function pairFor(address factory, address tokenA, address tokenB) internal pure returns (address pair) {
         (address token0, address token1) = sortTokens(tokenA, tokenB);
         pair = address(uint160(uint256(keccak256(abi.encodePacked(
@@ -31,17 +29,16 @@ library PancakeLibrary {
         )))));
     }
 
-    // Fetches and sorts the reserves for a pair
+    // Gets reserves from the pair, sorted to match token order
     function getReserves(address factory, address tokenA, address tokenB)
         internal view returns (uint256 reserveA, uint256 reserveB)
     {
         (address token0, ) = sortTokens(tokenA, tokenB);
-        (uint256 r0, uint256 r1, ) = IPancakePair(pairFor(factory, tokenA, tokenB)).getReserves();
-        (reserveA, reserveB) = tokenA == token0 ? (r0, r1) : (r1, r0);
+        (uint256 reserve0, uint256 reserve1, ) = IPancakePair(pairFor(factory, tokenA, tokenB)).getReserves();
+        (reserveA, reserveB) = tokenA == token0 ? (reserve0, reserve1) : (reserve1, reserve0);
     }
 
-    // Given an input amount of an asset and pair reserves, returns the maximum output amount,
-    // factoring in a fee if feeExempt == false (feeBps in basis points)
+    // Given an input amount and reserves, returns the max output accounting for optional fee
     function getAmountOut(
         uint256 amountIn,
         uint256 reserveIn,
@@ -51,6 +48,7 @@ library PancakeLibrary {
     ) internal pure returns (uint256 amountOut) {
         require(amountIn > 0, "PancakeLibrary: INSUFFICIENT_INPUT_AMOUNT");
         require(reserveIn > 0 && reserveOut > 0, "PancakeLibrary: INSUFFICIENT_LIQUIDITY");
+
         uint256 multiplier = feeExempt ? 10000 : (10000 - feeBps);
         uint256 amountInWithFee = amountIn.mul(multiplier);
         uint256 numerator = amountInWithFee.mul(reserveOut);
@@ -58,8 +56,7 @@ library PancakeLibrary {
         amountOut = numerator / denominator;
     }
 
-    // Given an output amount of an asset and pair reserves, returns a required input amount,
-    // factoring in a fee if feeExempt == false
+    // Given an output amount and reserves, returns the required input accounting for optional fee
     function getAmountIn(
         uint256 amountOut,
         uint256 reserveIn,
@@ -69,14 +66,14 @@ library PancakeLibrary {
     ) internal pure returns (uint256 amountIn) {
         require(amountOut > 0, "PancakeLibrary: INSUFFICIENT_OUTPUT_AMOUNT");
         require(reserveIn > 0 && reserveOut > 0, "PancakeLibrary: INSUFFICIENT_LIQUIDITY");
+
         uint256 multiplier = feeExempt ? 10000 : (10000 - feeBps);
         uint256 numerator = reserveIn.mul(amountOut).mul(10000);
         uint256 denominator = (reserveOut.sub(amountOut)).mul(multiplier);
         amountIn = (numerator / denominator).add(1);
     }
 
-    // Performs chained getAmountOut calculations on any number of pairs,
-    // forwarding the feeExempt and feeBps parameters through the whole path
+    // Chained getAmountOut calls across path
     function getAmountsOut(
         address factory,
         uint256 amountIn,
@@ -93,8 +90,7 @@ library PancakeLibrary {
         }
     }
 
-    // Performs chained getAmountIn calculations on any number of pairs,
-    // forwarding the feeExempt and feeBps parameters through the whole path
+    // Chained getAmountIn calls across path
     function getAmountsIn(
         address factory,
         uint256 amountOut,
@@ -111,7 +107,7 @@ library PancakeLibrary {
         }
     }
 
-    // Given some amount of asset and pair reserves, returns an equivalent amount of the other asset
+    // Standard quote (no fee consideration)
     function quote(
         uint256 amountA,
         uint256 reserveA,
